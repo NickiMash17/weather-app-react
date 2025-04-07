@@ -1,133 +1,167 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useWeather } from './hooks/useWeather';
-import { useFavorites } from './hooks/useFavorites';
-import NavTabs from './components/NavTabs';
+import { WeatherCondition } from './types/weather';
+import SearchBar from './components/SearchBar';
 import CurrentWeather from './components/CurrentWeather';
+import HourlyForecast from './components/HourlyForecast';
+import WeatherChart from './components/WeatherChart';
+import ParticleBackground from './components/ParticleBackground';
+import NavTabs from './components/NavTabs';
 import Forecast from './components/Forecast';
 import WeatherDetails from './components/WeatherDetails';
 import SettingsPanel from './components/SettingsPanel';
-import SearchBar from './components/SearchBar';
-import ParticleBackground from './components/ParticleBackground';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import './assets/styles/main.css';
+import { useWeather } from './hooks/useWeather';
+import { useFavorites } from './hooks/useFavorites';
+import { useCurrentLocation } from './hooks/useCurrentLocation';
 
 const App = () => {
+  const [city, setCity] = useState<string>('New York');
+  const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
+  const [darkMode, setDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('current');
-  const [darkMode, setDarkMode] = useState(() => {
-    const savedMode = localStorage.getItem('darkMode');
-    return savedMode ? JSON.parse(savedMode) : window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
-
-  const {
-    weatherData,
-    forecastData,
-    hourlyData,
-    loading,
-    error,
-    searchCity,
-    getWeatherByLocation,
-    units,
-    setUnits,
-  } = useWeather();
-
-  const { favorites, addFavorite, removeFavorite, isFavorite } = useFavorites();
+  
+  const { weather, forecast, hourlyForecast, loading, error, weatherCondition } = useWeather(city, units);
+  const { favorites, isFavorite, toggleFavorite } = useFavorites(city);
+  const { getCurrentLocation } = useCurrentLocation(setCity);
 
   useEffect(() => {
-    document.body.classList.toggle('dark-mode', darkMode);
-    localStorage.setItem('darkMode', JSON.stringify(darkMode));
+    // Set dark mode based on user preference or localStorage
+    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setDarkMode(savedDarkMode || prefersDark);
+    
+    // Set units from localStorage
+    const savedUnits = localStorage.getItem('units') as 'metric' | 'imperial' | null;
+    if (savedUnits) setUnits(savedUnits);
+    
+    // Set last city from localStorage
+    const lastCity = localStorage.getItem('lastCity');
+    if (lastCity) setCity(lastCity);
+  }, []);
+
+  useEffect(() => {
+    // Apply dark mode class to body
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('darkMode', darkMode.toString());
   }, [darkMode]);
 
-  const toggleDarkMode = () => {
+  const handleSearch = (searchCity: string) => {
+    setCity(searchCity);
+    localStorage.setItem('lastCity', searchCity);
+  };
+
+  const handleLocationClick = () => {
+    getCurrentLocation();
+  };
+
+  const handleToggleFavorite = () => {
+    toggleFavorite();
+  };
+
+  const handleUnitsChange = (newUnits: 'metric' | 'imperial') => {
+    setUnits(newUnits);
+    localStorage.setItem('units', newUnits);
+  };
+
+  const handleDarkModeToggle = () => {
     setDarkMode(!darkMode);
   };
 
   return (
-    <div className={`app-container ${darkMode ? 'dark' : 'light'}`}>
-      <ParticleBackground weatherCondition={weatherData?.weather[0].icon} />
+    <div className={`min-h-screen transition-colors duration-300 ${darkMode ? 'bg-gray-900' : 'bg-gradient-to-br from-blue-100 to-blue-300'}`}>
+      <ParticleBackground weatherCondition={weatherCondition} />
       
-      <motion.div 
-        className="app"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <SearchBar 
-          onSearch={searchCity} 
-          onLocationClick={getWeatherByLocation}
-          favorites={favorites}
-          onFavoriteClick={searchCity}
-        />
-
-        <NavTabs activeTab={activeTab} onTabChange={setActiveTab} />
-
-        <div className="tab-content">
-          <AnimatePresence mode="wait">
+      <div className="container mx-auto px-4 py-8 relative z-10">
+        <SearchBar onSearch={handleSearch} onLocationClick={handleLocationClick} />
+        
+        {loading && (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 border-opacity-50"></div>
+          </div>
+        )}
+        
+        {error && (
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+            <p>{error}</p>
+          </div>
+        )}
+        
+        {weather && (
+          <>
+            <NavTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+            
             {activeTab === 'current' && (
-              <motion.div
-                key="current"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <CurrentWeather 
-                  data={weatherData} 
+              <>
+                <CurrentWeather
+                  data={weather}
                   units={units}
-                  isFavorite={isFavorite(weatherData?.name)}
-                  onFavoriteToggle={() => weatherData?.name && 
-                    (isFavorite(weatherData.name) 
-                      ? removeFavorite(weatherData.name) 
-                      : addFavorite(weatherData.name))}
+                  isFavorite={isFavorite}
+                  onToggleFavorite={handleToggleFavorite}
                 />
-              </motion.div>
+                <HourlyForecast data={hourlyForecast} units={units} />
+                <WeatherChart forecast={forecast} units={units} darkMode={darkMode} />
+              </>
             )}
-
+            
             {activeTab === 'forecast' && (
-              <motion.div
-                key="forecast"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <Forecast data={forecastData} hourlyData={hourlyData} units={units} />
-              </motion.div>
+              <Forecast forecast={forecast} units={units} />
             )}
-
-            {activeTab === 'details' && (
-              <motion.div
-                key="details"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <WeatherDetails data={weatherData} />
-              </motion.div>
+            
+            {activeTab === 'details' && weather && (
+              <WeatherDetails weather={weather} units={units} />
             )}
-
+            
             {activeTab === 'settings' && (
-              <motion.div
-                key="settings"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <SettingsPanel 
-                  darkMode={darkMode}
-                  onDarkModeToggle={toggleDarkMode}
-                  units={units}
-                  onUnitsChange={setUnits}
-                  favorites={favorites}
-                  onRemoveFavorite={removeFavorite}
-                />
-              </motion.div>
+              <SettingsPanel
+                units={units}
+                onUnitsChange={handleUnitsChange}
+                darkMode={darkMode}
+                onDarkModeToggle={handleDarkModeToggle}
+                favorites={favorites}
+                onFavoriteClick={handleSearch}
+                onRemoveFavorite={toggleFavorite}
+              />
             )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
+          </>
+        )}
+        
+        <footer className={`mt-12 py-6 border-t ${darkMode ? 'border-gray-700 text-gray-300' : 'border-gray-200 text-gray-600'}`}>
+          <div className="text-center">
+            <p>
+              This project was coded by{' '}
+              <a
+                href="https://github.com/Reney17"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`font-semibold ${darkMode ? 'text-blue-300 hover:text-blue-200' : 'text-blue-600 hover:text-blue-500'}`}
+              >
+                Nicolette Mashaba
+              </a>
+              , is{' '}
+              <a
+                href="https://github.com/Reney17/weather_app_vanilla.git"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`font-semibold ${darkMode ? 'text-blue-300 hover:text-blue-200' : 'text-blue-600 hover:text-blue-500'}`}
+              >
+                open-sourced on GitHub
+              </a>{' '}
+              and{' '}
+              <a
+                href="https://nicoweatherapp.netlify.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`font-semibold ${darkMode ? 'text-blue-300 hover:text-blue-200' : 'text-blue-600 hover:text-blue-500'}`}
+              >
+                hosted on Netlify
+              </a>
+            </p>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 };

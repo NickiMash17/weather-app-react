@@ -1,80 +1,84 @@
-import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import { ForecastData } from '../types/weather';
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
+import { useEffect, useRef } from 'react'
+import Chart from 'chart.js/auto'
+import './WeatherChart.css'
 
 interface WeatherChartProps {
-  data: ForecastData[];
-  units: 'metric' | 'imperial';
+  forecast: {
+    day: string
+    temp_max: number
+    temp_min: number
+  }[]
+  units: 'metric' | 'imperial'
 }
 
-const WeatherChart = ({ data, units }: WeatherChartProps) => {
-  const chartData = {
-    labels: data.map(day => 
-      new Date(day.dt).toLocaleDateString([], { weekday: 'short' })
-    ),
-    datasets: [
-      {
-        label: 'Max Temperature',
-        data: data.map(day => day.temp_max),
-        borderColor: 'rgb(255, 159, 67)',
-        backgroundColor: 'rgba(255, 159, 67, 0.5)',
-        tension: 0.4,
-      },
-      {
-        label: 'Min Temperature',
-        data: data.map(day => day.temp_min),
-        borderColor: 'rgb(54, 162, 235)',
-        backgroundColor: 'rgba(54, 162, 235, 0.5)',
-        tension: 0.4,
-      },
-    ],
-  };
-
-  const options = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-      },
-      title: {
-        display: true,
-        text: 'Temperature Forecast',
-      },
-    },
-    scales: {
-      y: {
-        title: {
-          display: true,
-          text: `Temperature (°${units === 'metric' ? 'C' : 'F'})`,
+const WeatherChart = ({ forecast, units }: WeatherChartProps) => {
+  const chartRef = useRef<HTMLCanvasElement>(null)
+  const chartInstance = useRef<Chart | null>(null)
+  
+  useEffect(() => {
+    if (chartRef.current && forecast.length > 0) {
+      const ctx = chartRef.current.getContext('2d')
+      if (!ctx) return
+      
+      if (chartInstance.current) {
+        chartInstance.current.destroy()
+      }
+      
+      chartInstance.current = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: forecast.map(day => day.day),
+          datasets: [
+            {
+              label: `Max Temperature (°${units === 'metric' ? 'C' : 'F'})`,
+              data: forecast.map(day => Math.round(day.temp_max)),
+              borderColor: 'rgba(255, 99, 132, 1)',
+              backgroundColor: 'rgba(255, 99, 132, 0.2)',
+              tension: 0.4,
+              fill: true
+            },
+            {
+              label: `Min Temperature (°${units === 'metric' ? 'C' : 'F'})`,
+              data: forecast.map(day => Math.round(day.temp_min)),
+              borderColor: 'rgba(54, 162, 235, 1)',
+              backgroundColor: 'rgba(54, 162, 235, 0.2)',
+              tension: 0.4,
+              fill: true
+            }
+          ]
         },
-      },
-    },
-  };
-
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'top'
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: false
+            }
+          }
+        }
+      })
+    }
+    
+    return () => {
+      if (chartInstance.current) {
+        chartInstance.current.destroy()
+      }
+    }
+  }, [forecast, units])
+  
   return (
-    <div className="weather-chart">
-      <Line data={chartData} options={options} />
+    <div className="weather-chart-container">
+      <canvas ref={chartRef} />
     </div>
-  );
-};
+  )
+}
 
-export default WeatherChart;
+export default WeatherChart

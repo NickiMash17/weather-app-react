@@ -1,34 +1,49 @@
-import { fetchWeather } from './useWeather'
+import { useState } from 'react';
 
-const useCurrentLocation = () => {
-  const getCurrentLocation = (): Promise<{ city: string }> => {
+export const useCurrentLocation = () => {
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+
+  const getCurrentLocation = (): Promise<{ lat: number; lon: number }> => {
     return new Promise((resolve, reject) => {
+      setIsLocating(true);
+      setLocationError(null);
+
       if (!navigator.geolocation) {
-        reject(new Error('Geolocation is not supported by your browser'))
-        return
+        setLocationError('Geolocation is not supported by your browser');
+        setIsLocating(false);
+        reject(new Error('Geolocation not supported'));
+        return;
       }
 
       navigator.geolocation.getCurrentPosition(
-        async position => {
-          try {
-            const { latitude, longitude } = position.coords
-            const response = await fetch(
-              `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=2344c92a7ff896b70d4ee84a698a321d`
-            )
-            const data = await response.json()
-            resolve({ city: data.name })
-          } catch (error) {
-            reject(error)
-          }
+        (position) => {
+          setIsLocating(false);
+          resolve({
+            lat: position.coords.latitude,
+            lon: position.coords.longitude,
+          });
         },
-        error => {
-          reject(new Error('Unable to retrieve your location'))
+        (error) => {
+          setIsLocating(false);
+          let message = 'Unable to retrieve your location';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              message = 'Location access was denied';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              message = 'Location information is unavailable';
+              break;
+            case error.TIMEOUT:
+              message = 'The request to get location timed out';
+              break;
+          }
+          setLocationError(message);
+          reject(error);
         }
-      )
-    })
-  }
+      );
+    });
+  };
 
-  return { getCurrentLocation }
-}
-
-export default useCurrentLocation
+  return { getCurrentLocation, locationError, isLocating };
+};

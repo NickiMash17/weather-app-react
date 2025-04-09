@@ -1,167 +1,164 @@
-import { useState, useEffect } from 'react';
-import { WeatherCondition } from './types/weather';
+import React, { useState, useEffect } from 'react';
+import { Container, Alert } from 'react-bootstrap';
+import { useWeather } from './hooks/useWeather';
+import { useFavorites } from './hooks/useFavorites';
 import SearchBar from './components/SearchBar';
+import NavTabs from './components/NavTabs';
 import CurrentWeather from './components/CurrentWeather';
 import HourlyForecast from './components/HourlyForecast';
-import WeatherChart from './components/WeatherChart';
-import ParticleBackground from './components/ParticleBackground';
-import NavTabs from './components/NavTabs';
 import Forecast from './components/Forecast';
 import WeatherDetails from './components/WeatherDetails';
 import SettingsPanel from './components/SettingsPanel';
-import { useWeather } from './hooks/useWeather';
-import { useFavorites } from './hooks/useFavorites';
-import { useCurrentLocation } from './hooks/useCurrentLocation';
+import WeatherChart from './components/WeatherChart';
+import ParticleBackground from './components/ParticleBackground';
+import { WeatherCondition, Unit } from './types/weather';
+import { getWeatherCondition } from './utils/weatherUtils';
+import './App.css';
 
-const App = () => {
-  const [city, setCity] = useState<string>('New York');
-  const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
-  const [darkMode, setDarkMode] = useState(false);
+const App: React.FC = () => {
+  const [city, setCity] = useState<string>(() => {
+    return localStorage.getItem('lastCity') || 'New York';
+  });
   const [activeTab, setActiveTab] = useState('current');
-  
-  const { weather, forecast, hourlyForecast, loading, error, weatherCondition } = useWeather(city, units);
-  const { favorites, isFavorite, toggleFavorite } = useFavorites(city);
-  const { getCurrentLocation } = useCurrentLocation(setCity);
+  const [unit, setUnit] = useState<Unit>(() => {
+    return (localStorage.getItem('units') as Unit) || 'metric';
+  });
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('darkMode') === 'true';
+  });
+  const [weatherCondition, setWeatherCondition] = useState<WeatherCondition>('clear');
+
+  const { weather, forecast, loading, error, fetchWeatherByCoords } = useWeather(city, unit);
+  const { favorites, addFavorite, removeFavorite, isFavorite } = useFavorites();
 
   useEffect(() => {
-    // Set dark mode based on user preference or localStorage
-    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setDarkMode(savedDarkMode || prefersDark);
-    
-    // Set units from localStorage
-    const savedUnits = localStorage.getItem('units') as 'metric' | 'imperial' | null;
-    if (savedUnits) setUnits(savedUnits);
-    
-    // Set last city from localStorage
-    const lastCity = localStorage.getItem('lastCity');
-    if (lastCity) setCity(lastCity);
-  }, []);
-
-  useEffect(() => {
-    // Apply dark mode class to body
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    if (weather) {
+      const condition = getWeatherCondition(weather.weather[0].icon);
+      setWeatherCondition(condition);
     }
-    localStorage.setItem('darkMode', darkMode.toString());
+  }, [weather]);
+
+  useEffect(() => {
+    document.body.className = darkMode ? 'bg-dark text-light' : 'bg-light text-dark';
   }, [darkMode]);
 
   const handleSearch = (searchCity: string) => {
     setCity(searchCity);
-    localStorage.setItem('lastCity', searchCity);
   };
 
-  const handleLocationClick = () => {
-    getCurrentLocation();
+  const handleLocationSearch = (lat: number, lon: number) => {
+    fetchWeatherByCoords(lat, lon);
   };
 
   const handleToggleFavorite = () => {
-    toggleFavorite();
+    if (!weather) return;
+    if (isFavorite(weather.name)) {
+      removeFavorite(weather.name);
+    } else {
+      addFavorite(weather.name);
+    }
   };
 
-  const handleUnitsChange = (newUnits: 'metric' | 'imperial') => {
-    setUnits(newUnits);
-    localStorage.setItem('units', newUnits);
+  const handleUnitChange = (newUnit: Unit) => {
+    setUnit(newUnit);
+    localStorage.setItem('units', newUnit);
   };
 
-  const handleDarkModeToggle = () => {
-    setDarkMode(!darkMode);
+  const handleDarkModeChange = (newDarkMode: boolean) => {
+    setDarkMode(newDarkMode);
+    localStorage.setItem('darkMode', String(newDarkMode));
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${darkMode ? 'bg-gray-900' : 'bg-gradient-to-br from-blue-100 to-blue-300'}`}>
+    <div className={`app-container ${weatherCondition}`}>
       <ParticleBackground weatherCondition={weatherCondition} />
       
-      <div className="container mx-auto px-4 py-8 relative z-10">
-        <SearchBar onSearch={handleSearch} onLocationClick={handleLocationClick} />
-        
-        {loading && (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 border-opacity-50"></div>
-          </div>
-        )}
-        
-        {error && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
-            <p>{error}</p>
-          </div>
-        )}
-        
-        {weather && (
-          <>
-            <NavTabs activeTab={activeTab} setActiveTab={setActiveTab} />
-            
-            {activeTab === 'current' && (
-              <>
-                <CurrentWeather
-                  data={weather}
-                  units={units}
-                  isFavorite={isFavorite}
-                  onToggleFavorite={handleToggleFavorite}
+      <Container className="py-4">
+        <div className={`weather-app p-4 rounded-4 shadow-lg ${darkMode ? 'bg-dark' : 'bg-light'}`}>
+          <h1 className="text-center mb-4">Weather Forecast</h1>
+          
+          <SearchBar 
+            onSearch={handleSearch} 
+            onLocationSearch={handleLocationSearch} 
+          />
+          
+          {loading && (
+            <div className="text-center py-5">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <p className="mt-3">Loading weather data...</p>
+            </div>
+          )}
+          
+          {error && (
+            <Alert variant="danger" className="text-center">
+              {error}
+            </Alert>
+          )}
+          
+          {weather && forecast && !loading && (
+            <>
+              <NavTabs activeTab={activeTab} onSelect={setActiveTab} />
+              
+              {activeTab === 'current' && (
+                <>
+                  <CurrentWeather 
+                    weather={weather} 
+                    unit={unit} 
+                    isFavorite={isFavorite(weather.name)} 
+                    onToggleFavorite={handleToggleFavorite} 
+                  />
+                  <HourlyForecast 
+                    hourlyData={forecast.list.slice(0, 12)} 
+                    unit={unit} 
+                  />
+                </>
+              )}
+              
+              {activeTab === 'forecast' && (
+                <>
+                  <Forecast forecast={forecast} unit={unit} />
+                  <WeatherChart 
+                    forecast={forecast} 
+                    unit={unit} 
+                    darkMode={darkMode} 
+                  />
+                </>
+              )}
+              
+              {activeTab === 'details' && (
+                <WeatherDetails weather={weather} />
+              )}
+              
+              {activeTab === 'settings' && (
+                <SettingsPanel 
+                  unit={unit} 
+                  onUnitChange={handleUnitChange} 
+                  darkMode={darkMode} 
+                  onDarkModeChange={handleDarkModeChange} 
                 />
-                <HourlyForecast data={hourlyForecast} units={units} />
-                <WeatherChart forecast={forecast} units={units} darkMode={darkMode} />
-              </>
-            )}
-            
-            {activeTab === 'forecast' && (
-              <Forecast forecast={forecast} units={units} />
-            )}
-            
-            {activeTab === 'details' && weather && (
-              <WeatherDetails weather={weather} units={units} />
-            )}
-            
-            {activeTab === 'settings' && (
-              <SettingsPanel
-                units={units}
-                onUnitsChange={handleUnitsChange}
-                darkMode={darkMode}
-                onDarkModeToggle={handleDarkModeToggle}
-                favorites={favorites}
-                onFavoriteClick={handleSearch}
-                onRemoveFavorite={toggleFavorite}
-              />
-            )}
-          </>
-        )}
+              )}
+            </>
+          )}
+        </div>
         
-        <footer className={`mt-12 py-6 border-t ${darkMode ? 'border-gray-700 text-gray-300' : 'border-gray-200 text-gray-600'}`}>
-          <div className="text-center">
-            <p>
-              This project was coded by{' '}
-              <a
-                href="https://github.com/Reney17"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`font-semibold ${darkMode ? 'text-blue-300 hover:text-blue-200' : 'text-blue-600 hover:text-blue-500'}`}
-              >
-                Nicolette Mashaba
-              </a>
-              , is{' '}
-              <a
-                href="https://github.com/Reney17/weather_app_vanilla.git"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`font-semibold ${darkMode ? 'text-blue-300 hover:text-blue-200' : 'text-blue-600 hover:text-blue-500'}`}
-              >
-                open-sourced on GitHub
-              </a>{' '}
-              and{' '}
-              <a
-                href="https://nicoweatherapp.netlify.app"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`font-semibold ${darkMode ? 'text-blue-300 hover:text-blue-200' : 'text-blue-600 hover:text-blue-500'}`}
-              >
-                hosted on Netlify
-              </a>
-            </p>
-          </div>
+        <footer className={`mt-4 p-3 text-center rounded-3 ${darkMode ? 'bg-secondary' : 'bg-light'}`}>
+          <p className="m-0">
+            This project was coded by{' '}
+            <a href="https://github.com/Reney17" target="_blank" rel="noopener noreferrer">
+              Nicolette Mashaba
+            </a>, is{' '}
+            <a href="https://github.com/Reney17/weather_app_vanilla.git" target="_blank" rel="noopener noreferrer">
+              open-sourced on GitHub
+            </a>{' '}
+            and{' '}
+            <a href="https://nicoweatherapp.netlify.app" target="_blank" rel="noopener noreferrer">
+              hosted on Netlify
+            </a>
+          </p>
         </footer>
-      </div>
+      </Container>
     </div>
   );
 };

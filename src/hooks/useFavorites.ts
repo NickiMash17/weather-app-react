@@ -1,26 +1,26 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react';
 
-const useFavorites = () => {
+export const useFavorites = () => {
   const [favorites, setFavorites] = useState<string[]>(() => {
-    const saved = localStorage.getItem('favorites')
-    return saved ? JSON.parse(saved) : []
-  })
-
-  useEffect(() => {
-    localStorage.setItem('favorites', JSON.stringify(favorites))
-  }, [favorites])
+    const saved = localStorage.getItem('favorites');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   const addFavorite = (city: string) => {
     if (!favorites.includes(city)) {
-      setFavorites([...favorites, city])
+      const updated = [...favorites, city];
+      setFavorites(updated);
+      localStorage.setItem('favorites', JSON.stringify(updated));
     }
-  }
+  };
 
   const removeFavorite = (city: string) => {
-    setFavorites(favorites.filter(fav => fav !== city))
-  }
+    const updated = favorites.filter(fav => fav !== city);
+    setFavorites(updated);
+    localStorage.setItem('favorites', JSON.stringify(updated));
+  };
 
-  return { favorites, addFavorite, removeFavorite }
-}
+  const isFavorite = (city: string) => favorites.includes(city);
 
-export default useFavorites
+  return { favorites, addFavorite, removeFavorite, isFavorite };
+};

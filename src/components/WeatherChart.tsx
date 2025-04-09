@@ -1,84 +1,110 @@
-import { useEffect, useRef } from 'react'
-import Chart from 'chart.js/auto'
-import './WeatherChart.css'
+import React from 'react';
+import { Line } from 'react-chartjs-2';
+import { ForecastData, Unit } from '../types/weather';
+import { formatDay } from '../utils/weatherUtils';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 interface WeatherChartProps {
-  forecast: {
-    day: string
-    temp_max: number
-    temp_min: number
-  }[]
-  units: 'metric' | 'imperial'
+  forecast: ForecastData;
+  unit: Unit;
+  darkMode: boolean;
 }
 
-const WeatherChart = ({ forecast, units }: WeatherChartProps) => {
-  const chartRef = useRef<HTMLCanvasElement>(null)
-  const chartInstance = useRef<Chart | null>(null)
-  
-  useEffect(() => {
-    if (chartRef.current && forecast.length > 0) {
-      const ctx = chartRef.current.getContext('2d')
-      if (!ctx) return
-      
-      if (chartInstance.current) {
-        chartInstance.current.destroy()
-      }
-      
-      chartInstance.current = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: forecast.map(day => day.day),
-          datasets: [
-            {
-              label: `Max Temperature (°${units === 'metric' ? 'C' : 'F'})`,
-              data: forecast.map(day => Math.round(day.temp_max)),
-              borderColor: 'rgba(255, 99, 132, 1)',
-              backgroundColor: 'rgba(255, 99, 132, 0.2)',
-              tension: 0.4,
-              fill: true
-            },
-            {
-              label: `Min Temperature (°${units === 'metric' ? 'C' : 'F'})`,
-              data: forecast.map(day => Math.round(day.temp_min)),
-              borderColor: 'rgba(54, 162, 235, 1)',
-              backgroundColor: 'rgba(54, 162, 235, 0.2)',
-              tension: 0.4,
-              fill: true
-            }
-          ]
+const WeatherChart: React.FC<WeatherChartProps> = ({ forecast, unit, darkMode }) => {
+  // Get one forecast per day (around noon)
+  const dailyForecast = forecast.list.filter((_, index) => index % 8 === 4).slice(0, 5);
+
+  const data = {
+    labels: dailyForecast.map(day => formatDay(new Date(day.dt * 1000))),
+    datasets: [
+      {
+        label: 'Max Temperature',
+        data: dailyForecast.map(day => Math.round(day.main.temp_max)),
+        borderColor: 'rgba(255, 159, 67, 1)',
+        backgroundColor: 'rgba(255, 159, 67, 0.2)',
+        tension: 0.4,
+        borderWidth: 2,
+      },
+      {
+        label: 'Min Temperature',
+        data: dailyForecast.map(day => Math.round(day.main.temp_min)),
+        borderColor: 'rgba(54, 162, 235, 1)',
+        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+        tension: 0.4,
+        borderWidth: 2,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          color: darkMode ? '#f8f9fa' : '#212529',
         },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: {
-              position: 'top'
-            },
-            tooltip: {
-              mode: 'index',
-              intersect: false
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: false
-            }
+      },
+      title: {
+        display: true,
+        text: 'Temperature Forecast',
+        color: darkMode ? '#f8f9fa' : '#212529',
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            return `${context.dataset.label}: ${context.raw}${unit === 'metric' ? '°C' : '°F'}`;
           }
         }
-      })
-    }
-    
-    return () => {
-      if (chartInstance.current) {
-        chartInstance.current.destroy()
       }
-    }
-  }, [forecast, units])
-  
-  return (
-    <div className="weather-chart-container">
-      <canvas ref={chartRef} />
-    </div>
-  )
-}
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: darkMode ? '#f8f9fa' : '#212529',
+        },
+        grid: {
+          color: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        },
+      },
+      y: {
+        ticks: {
+          color: darkMode ? '#f8f9fa' : '#212529',
+          callback: function(value: any) {
+            return `${value}${unit === 'metric' ? '°C' : '°F'}`;
+          }
+        },
+        grid: {
+          color: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        },
+      },
+    },
+  };
 
-export default WeatherChart
+  return (
+    <div className="weather-chart mb-5" style={{ height: '300px' }}>
+      <Line data={data} options={options} />
+    </div>
+  );
+};
+
+export default WeatherChart;

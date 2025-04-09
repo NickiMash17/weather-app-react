@@ -1,27 +1,35 @@
 import { WiDaySunny, WiCloudy, WiRain, WiSnow, WiThunderstorm, WiFog, 
     WiNightClear, WiDayCloudy, WiNightCloudy, WiDayShowers, WiNightShowers } from 'react-icons/wi'
-  
-  export const getWeatherIcon = (iconCode: string, size = 64) => {
-    const iconMap: Record<string, JSX.Element> = {
-      '01d': <WiDaySunny size={size} />,
-      '01n': <WiNightClear size={size} />,
-      '02d': <WiDayCloudy size={size} />,
-      '02n': <WiNightCloudy size={size} />,
-      '03d': <WiCloudy size={size} />,
-      '03n': <WiCloudy size={size} />,
-      '04d': <WiCloudy size={size} />,
-      '04n': <WiCloudy size={size} />,
-      '09d': <WiRain size={size} />,
-      '09n': <WiRain size={size} />,
-      '10d': <WiDayShowers size={size} />,
-      '10n': <WiNightShowers size={size} />,
-      '11d': <WiThunderstorm size={size} />,
-      '11n': <WiThunderstorm size={size} />,
-      '13d': <WiSnow size={size} />,
-      '13n': <WiSnow size={size} />,
-      '50d': <WiFog size={size} />,
-      '50n': <WiFog size={size} />
-    }
-    
-    return iconMap[iconCode] || <WiDaySunny size={size} />
+
+interface IconMap {
+  [key: string]: JSX.Element
+}
+
+const iconMap: IconMap = {
+  '01d': <WiDaySunny />,
+  '01n': <WiNightClear />,
+  '02d': <WiDayCloudy />,
+  '02n': <WiNightCloudy />,
+  '03d': <WiCloudy />,
+  '03n': <WiCloudy />,
+  '04d': <WiCloudy />,
+  '04n': <WiCloudy />,
+  '09d': <WiRain />,
+  '09n': <WiRain />,
+  '10d': <WiDayShowers />,
+  '10n': <WiNightShowers />,
+  '11d': <WiThunderstorm />,
+  '11n': <WiThunderstorm />,
+  '13d': <WiSnow />,
+  '13n': <WiSnow />,
+  '50d': <WiFog />,
+  '50n': <WiFog />
+}
+
+export const getWeatherIcon = (iconCode: string, size = 64): JSX.Element => {
+  const icon = iconMap[iconCode]
+  if (!icon) {
+    throw new Error(`Icon code not found: ${iconCode}`)
   }
+  return React.cloneElement(icon, { size })
+}

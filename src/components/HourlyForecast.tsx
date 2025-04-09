@@ -1,34 +1,29 @@
-import { HourlyForecast } from '../types/weather';
-import { format, fromUnixTime } from 'date-fns';
+import React from 'react';
+import { ForecastItem, Unit } from '../types/weather';
+import { formatTime } from '../utils/weatherUtils';
 
 interface HourlyForecastProps {
-  data: HourlyForecast[];
-  units: 'metric' | 'imperial';
+  hourlyData: ForecastItem[];
+  unit: Unit;
 }
 
-const HourlyForecast = ({ data, units }: HourlyForecastProps) => {
-  const temperatureUnit = units === 'metric' ? '°C' : '°F';
+const HourlyForecast: React.FC<HourlyForecastProps> = ({ hourlyData, unit }) => {
+  const tempUnit = unit === 'metric' ? '°C' : '°F';
 
   return (
-    <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white border-opacity-20 mt-6 animate-fadeIn">
-      <h2 className="text-2xl font-bold text-white mb-4">Hourly Forecast</h2>
-      <div className="flex overflow-x-auto pb-4 -mx-2">
-        {data.map((hour, index) => (
-          <div
-            key={index}
-            className="flex-shrink-0 bg-white bg-opacity-10 rounded-xl p-4 mx-2 min-w-[100px] text-center transition-all duration-300 hover:bg-opacity-20 hover:scale-105"
-          >
-            <p className="text-gray-200 text-sm">
-              {format(fromUnixTime(hour.time), 'h a')}
-            </p>
-            <img
-              src={`https://openweathermap.org/img/wn/${hour.condition.icon}@2x.png`}
-              alt={hour.condition.description}
-              className="w-16 h-16 mx-auto my-2"
+    <div className="hourly-forecast mb-5">
+      <h3 className="mb-3">Hourly Forecast</h3>
+      <div className="d-flex overflow-auto pb-3" style={{ gap: '1rem' }}>
+        {hourlyData.map((hour, index) => (
+          <div key={index} className="hourly-item text-center p-3 rounded-3 shadow-sm" style={{ minWidth: '100px' }}>
+            <div className="fw-bold">{formatTime(new Date(hour.dt * 1000))}</div>
+            <img 
+              src={`https://openweathermap.org/img/wn/${hour.weather[0].icon}@2x.png`} 
+              alt={hour.weather[0].description}
+              className="img-fluid my-2"
+              style={{ width: '50px', height: '50px' }}
             />
-            <p className="text-xl font-bold text-white">
-              {Math.round(hour.temperature)}{temperatureUnit}
-            </p>
+            <div className="fs-5 fw-bold">{Math.round(hour.main.temp)}{tempUnit}</div>
           </div>
         ))}
       </div>

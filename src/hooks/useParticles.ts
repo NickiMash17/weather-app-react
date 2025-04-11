@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { WeatherCondition } from '../types/weather';
 
 interface Particle {
@@ -55,7 +55,7 @@ export const useParticles = (weatherCondition: WeatherCondition) => {
     }
   };
 
-  const initParticles = (canvas: HTMLCanvasElement, condition: WeatherCondition) => {
+  const initParticles = useCallback((canvas: HTMLCanvasElement, condition: WeatherCondition) => {
     const count = getParticleCount(condition);
     particlesRef.current = Array.from({ length: count }, () => ({
       x: Math.random() * canvas.width,
@@ -65,79 +65,79 @@ export const useParticles = (weatherCondition: WeatherCondition) => {
       speedY: Math.random() * 3 - 1.5,
       color: getParticleColor(condition),
     }));
-  };
+  }, []);
 
-  const animateParticles = () => {
+  const animateParticles = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
+    
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    
     particlesRef.current.forEach(particle => {
       particle.x += particle.speedX;
       particle.y += particle.speedY;
-
+      
       // Wrap particles around the screen
       if (particle.x > canvas.width) particle.x = 0;
       if (particle.x < 0) particle.x = canvas.width;
       if (particle.y > canvas.height) particle.y = 0;
       if (particle.y < 0) particle.y = canvas.height;
-
+      
       // Draw particle
       ctx.beginPath();
       ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
       ctx.fillStyle = particle.color;
       ctx.fill();
     });
-
+    
     animationRef.current = requestAnimationFrame(animateParticles);
-  };
+  }, []);
 
-  const resizeCanvas = () => {
+  const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
+    
     const container = canvas.parentElement;
     if (!container) return;
-
+    
     const dpr = window.devicePixelRatio || 1;
     const rect = container.getBoundingClientRect();
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
-
+    
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.scale(dpr, dpr);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
+    
     resizeCanvas();
     initParticles(canvas, weatherCondition);
     animateParticles();
-
+    
     const handleResize = () => {
       resizeCanvas();
       initParticles(canvas, weatherCondition);
     };
-
+    
     window.addEventListener('resize', handleResize);
-
+    
     return () => {
       window.removeEventListener('resize', handleResize);
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [weatherCondition]);
+  }, [weatherCondition, resizeCanvas, initParticles, animateParticles]);
 
   return canvasRef;
 };

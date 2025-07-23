@@ -31,7 +31,7 @@ Stay up-to-date with real-time weather conditions, forecasts, and more—all in 
 
 ## 🖼️ Preview
 
-> _[weather-react.png]_
+> _![Screenshot](images/weather-react.png)_
 
 ---
 

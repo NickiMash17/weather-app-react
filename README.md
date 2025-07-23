@@ -50,7 +50,7 @@ Stay up-to-date with real-time weather conditions, forecasts, and more—all in 
 
 1. **Clone the repo:**
    ```bash
-   git clone https://github.com/your-username/weather-app-react.git
+   git clone https://github.com/NickiMash17/weather-app-react.git
    cd weather-app-react
    ```
 2. **Install dependencies:**
@@ -104,4 +104,4 @@ This project is licensed under the MIT License.
 
 ---
 
-> _Made with ❤️ by Nicolettemashaba_
+> _Made with ❤️ by Nicolette Mashaba
